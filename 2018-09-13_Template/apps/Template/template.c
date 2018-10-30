@@ -86,12 +86,18 @@ static void APP_TaskHandler(void)
   if(receivedUart)		//est-ce qu'un caractere a été recu par l'UART?
   {
 	  Ecris_UART(receivedUart);	//envoie l'echo du caractere recu par l'UART
-
-	  if(receivedUart == 'a')	//est-ce que le caractere recu est 'a'? 
+	  
+	    if(receivedUart == 'o')	//est-ce que le caractere recu est 'a'? 
 		{
-		uint8_t demonstration_string[128] = "123456789A"; //data packet bidon
+		uint8_t demonstration_string[128] = "1111111111"; //data packet bidon
 		Ecris_Wireless(demonstration_string, 10); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
 		}
+		if(receivedUart == 'f')	//est-ce que le caractere recu est 'a'? 
+		{
+		uint8_t demonstration_string[128] = "0000000000"; //data packet bidon
+		Ecris_Wireless(demonstration_string, 10); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
+		}
+		
   }
 
 
@@ -105,6 +111,12 @@ static void APP_TaskHandler(void)
 	Ecris_UART_string( "\n\rnew trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
 	Ecris_UART_string( "contenu: %s", ind.data );	
 	receivedWireless = 0; 
+	
+	if (ind.data[0] == '1') //lumiere éteinte pas de soleil
+	{
+		uint8_t command_string[128] = "1";
+		Ecris_Wireless(command_string, 1);
+	}
   }
 }
 
