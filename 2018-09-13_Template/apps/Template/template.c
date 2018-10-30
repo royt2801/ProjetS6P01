@@ -116,18 +116,20 @@ static void APP_TaskHandler(void)
 	{
 		uint8_t command_string[128] = "1";
 		Ecris_Wireless(command_string, 1);
+		PORTD &= 0xEF; 
 	}
   }
 }
 
-
+uint32_t a = 0;
 
 /*************************************************************************//**
 *****************************************************************************/
 int main(void)
 {
   SYS_Init();
-   
+  DDRD |= 1 << DDRD4;
+  PORTD |= 1 << PORTD4;
   while (1)
   {
     PHY_TaskHandler(); //stack wireless: va vérifier s'il y a un paquet recu
