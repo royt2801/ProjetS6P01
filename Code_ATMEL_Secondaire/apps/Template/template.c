@@ -87,16 +87,31 @@ static void APP_TaskHandler(void)
   {
 	  Ecris_UART(receivedUart);	//envoie l'echo du caractere recu par l'UART
 
-	  if(receivedUart == 'o')	//est-ce que le caractere recu est 'a'? 
+	  if(receivedUart == '1')	//est-ce que le caractere recu est 'a'? 
 		{
-		uint8_t demonstration_string[128] = "123456789A"; //data packet bidon
-		Ecris_Wireless(demonstration_string, 10); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
+		uint8_t demonstration_string[128] = "1"; //data packet bidon
+		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
 		}
+		
+	if(receivedUart == '2')	//est-ce que le caractere recu est 'a'?
+	{
+		uint8_t demonstration_string[128] = "2"; //data packet bidon
+		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
+	}
+	
+	if(receivedUart == '3')	//est-ce que le caractere recu est 'a'?
+	{
+		uint8_t demonstration_string[128] = "3"; //data packet bidon
+		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
+	}
+	
+	if(receivedUart == '4')	//est-ce que le caractere recu est 'a'?
+	{
+		uint8_t demonstration_string[128] = "4"; //data packet bidon
+		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
+	}
+		
   }
-
-
-
-
   
   if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless? 
   {
