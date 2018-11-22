@@ -63,11 +63,15 @@ void Ecris_UART(char data);
 void Ecris_UART_string(char const * data, ...);
 void init_UART(void);
 void SYS_Init(void);
+void init_timer1(void);
 
 /*- Variables --------------------------------------------------------------*/
 // Put your variables here
 uint8_t receivedWireless;	//cette variable deviendra 1 lorsqu'un nouveau paquet aura été recu via wireless (et copié dans "PHY_DataInd_t ind"
 							//il faut la mettre a 0 apres avoir géré le paquet; tout message recu via wireless pendant que cette variable est a 1 sera jeté
+
+// global variable to count the number of overflows
+volatile uint8_t tot_overflow;
 
 PHY_DataInd_t ind; //cet objet contiendra les informations concernant le dernier paquet qui vient de rentrer
 
@@ -130,11 +134,21 @@ static void APP_TaskHandler(void)
 int main(void)
 {
   SYS_Init();
+  init_timer1();
+  ANT_DIV |= (1 << ANT_EXT_SW_EN);
+  ANT_DIV |= (1 << ANT_CTRL0);
+  ANT_DIV &= ~(1 << ANT_CTRL1);
+  
+  DDRD |= 1 << DDRD4;
+  
    
   while (1)
   {
     PHY_TaskHandler(); //stack wireless: va vérifier s'il y a un paquet recu
     APP_TaskHandler(); //l'application principale roule ici
+	//Ecris_UART_string( "Count : %d\n\r", tot_overflow);
+	//Ecris_UART_string( "Count : %u\n\r", TCNT1);
+	
   }
 }
 
@@ -158,10 +172,40 @@ PHY_SetRxState(1); //TRX_CMD_RX_ON
 //
 
 
+void init_timer1(void)
+{
+	// set up timer with prescaler = 256
+	TCCR1A &= 0;
+	TCCR1B |= 0x03;
+	 
+	// initialize counter
+	TCNT1 = 0;
+
+	// enable overflow interrupt
+	TIMSK1 |= (1 << TOIE1);
+
+	// enable global interrupts
+	sei();
+
+	// initialize overflow counter variable
+	tot_overflow = 0;
+}
 
 
-
-
+// TIMER1 overflow interrupt service routine
+// called whenever TCNT0 overflows
+ISR(TIMER1_OVF_vect)
+{
+	// keep a track of number of overflows
+	tot_overflow++;
+	if(tot_overflow == 10)
+	{
+		uint8_t demonstration_string[128] = "1"; //data packet bidon
+		Ecris_Wireless(demonstration_string, 1);
+		tot_overflow = 0;
+	}
+	
+}
 
 
 
