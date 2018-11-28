@@ -25,12 +25,12 @@ void Ecris_UART(char data);
 void Ecris_UART_string(char const * data, ...);
 void init_timer1(void);
 
-void init_entete(entete *station);
+void init_data(data *station);
 void read_station_status(void);
 void request_station_status(void);
 int confirm_station_status(void);
-void pack(void);
-void unpack(void);
+void pack(uint8_t station_id);
+void unpack(uint8_t station_id);
 
 
 #endif /* template_H_ */
