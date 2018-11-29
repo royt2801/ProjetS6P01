@@ -5,33 +5,6 @@
 #include "template.h"
 #include <string.h>
 
-/*- Variables --------------------------------------------------------------*/
-volatile uint8_t tot_overflow;       // global variable to count the number of overflows
-volatile uint8_t tot_overflow_flag;
-
-uint8_t station_id;
-char transmit_buff[20];
-char receive_buff[20];
-uint8_t receivedWireless;	//cette variable deviendra 1 lorsqu'un nouveau paquet aura été recu via wireless (et copié dans "PHY_DataInd_t ind"
-//il faut la mettre a 0 apres avoir géré le paquet; tout message recu via wireless pendant que cette variable est a 1 sera jeté
-
-
-PHY_DataInd_t ind; //cet objet contiendra les informations concernant le dernier paquet qui vient de rentrer
-
-/*- Structures -------------------------------------------------------------*/
-typedef struct data
-{
-	char prefix[6];
-	uint8_t station_id;
-	char actuator_status;
-	char feedback_status;
-	char sensor_status;
-	char station_status;
-	char reserved[9];
-}data;
-
-data database[10];
-
 // Put your function implementations here
 
 /*************************************************************************//**
@@ -40,7 +13,9 @@ static void APP_TaskHandler(void)
 {
 	char receivedUart = 0;
 
-	read_station_status();	
+	
+	
+	read_station_status();
 	receivedUart = Lis_UART();  
 	if(receivedUart)		//est-ce qu'un caractere a été recu par l'UART?
 	 {
@@ -56,20 +31,8 @@ static void APP_TaskHandler(void)
 			uint8_t demonstration_string[128] = "0000000000"; //data packet bidon
 			Ecris_Wireless(demonstration_string, 10); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer*/
 	}
-
-  if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless? 
-  {
-	Ecris_UART_string( "\n\rnew trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
-	Ecris_UART_string( "contenu: %s", ind.data );	
 	receivedWireless = 0; 
-	
-	if (ind.data[0] == '1') //lumiere éteinte pas de soleil
-	{
-		uint8_t command_string[128] = "1";
-		Ecris_Wireless(command_string, 1);
-		PORTD &= 0xEF; 
-	}
-  }
+  
 }
 
 uint32_t a = 0;
@@ -82,7 +45,7 @@ int main(void)
 	SYS_Init();
 	init_timer1();
 	init_data();
-
+	
 	DDRD |= 1 << DDRD4;
 	PORTD |= 1 << PORTD4;
 	while (1)
@@ -133,14 +96,10 @@ ISR(TIMER1_OVF_vect)
 
 	// keep a track of number of overflows
 	tot_overflow++;
-	if(tot_overflow == 5)
+	if(tot_overflow >= NB_STATIONS)
 	{
 		tot_overflow = 0;
 		tot_overflow_flag = 1;
-		/*uint8_t demonstration_string[128] = "1"; //data packet bidon
-		Ecris_Wireless(demonstration_string, 1);
-		Ecris_UART_string("Envoi de paquet\n");
-		tot_overflow = 0;*/
 	}
 	
 }
@@ -154,45 +113,78 @@ void read_station_status(void)
 {
 	if(tot_overflow_flag == 1)
 	{
-		Ecris_UART_string("Read station %u status...\n\r",station_id);
-		pack(station_id);
 		
+		pack(station_id);
+		Ecris_UART_string("Read station %u status...\n\r",station_id);
 		request_station_status();
-		//int a = confirm_station_status();
+		if(confirm_station_status() == 1)
+			{
+				unpack();
+			}
+			
 
-		if(station_id != 10)
+		if(station_id < NB_STATIONS)
 			station_id ++;
 		else
 			station_id = 1;
 		
 		tot_overflow_flag = 0;
+		
+		Ecris_UART_string("\n\r");
 	}
 }
 
 void request_station_status(void)
 {
 	Ecris_Wireless(transmit_buff, sizeof(transmit_buff));
-	Ecris_UART_string("%s\n\r",transmit_buff);
+	Ecris_UART_string("Transmit : %s\n\r",transmit_buff);
 }
 
 int confirm_station_status(void)
 {
-	return 1;
+	if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless? 
+	{
+		Ecris_UART_string( "\n\rnew trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
+		Ecris_UART_string( "contenu: %s\n\r", ind.data );
+	
+		char bufPrefix[PREFIX_LEN] = "S6GEP1";
+		if(memcmp(bufPrefix,ind.data,PREFIX_LEN) == 0)
+		{
+				Ecris_UART_string("Prefixe reconnu!\n\r");
+				if(ind.data[6] == station_id + '0')
+				{
+					Ecris_UART_string("Station %c est connectee!\n\r",ind.data[6]);
+					return 1;
+				}		
+		}
+		else
+		{
+			Ecris_UART_string("Prefixe non reconnu!\n\r");
+			return 0;
+		}
+	
+	}
 }
 
-void pack(uint8_t station_id)
+void pack()
 {
-	memcpy(transmit_buff,database[station_id-1].prefix,sizeof(database[station_id-1].prefix));
-	transmit_buff[6] = database[station_id-1].station_id;
+	memcpy(transmit_buff,database[station_id-1].prefix,sizeof(database[station_id-1].prefix)); //Prefix de 6 char
+	transmit_buff[6] = database[station_id-1].station_id + '0'; 
 	transmit_buff[7] = database[station_id-1].actuator_status;
 	transmit_buff[8] = database[station_id-1].feedback_status;
 	transmit_buff[9] = database[station_id-1].sensor_status;
 	transmit_buff[10] = database[station_id-1].station_status;
-	memcpy(transmit_buff+11,database[station_id-1].reserved,sizeof(database[station_id-1].reserved));
-
+	memcpy(transmit_buff+11,database[station_id-1].reserved,sizeof(database[station_id-1].reserved)); //Reserved 9 char
+	database[station_id-1].checksumValue = checksum(transmit_buff,20);
+	//memcpy(transmit_buff+20,database[station_id-1].checksumValue,sizeof(uint32_t));
+	transmit_buff[20] = (database[station_id-1].checksumValue >> 24) & 0xFF;
+	transmit_buff[21] = (database[station_id-1].checksumValue >> 16) & 0xFF;
+	transmit_buff[22] = (database[station_id-1].checksumValue >> 8) & 0xFF;
+	transmit_buff[23] = database[station_id-1].checksumValue & 0xFF;
+	
 }
 
-void unpack(uint8_t station_id)
+void unpack()
 {
 	/*database[station_id-1].prefix = receive_buff[0]; 
 	database[station_id-1].station_id = receive_buff[6];
@@ -205,19 +197,32 @@ void unpack(uint8_t station_id)
 
 void init_data(void)
 {
-	char buf[6] = "S6GEP1";
-	char buf2[9] = "000000000";
-	for(int i = 0; i < 10; i++)
+	char bufPrefix[PREFIX_LEN] = "S6GEP1";
+	char bufReserved[RESERVED_LEN] = "000000000";
+	
+	for(int i = 0; i < NB_STATIONS; i++)
 	{
-		memcpy((void *)database[i].prefix,(void *)buf,sizeof(buf));
+		memcpy((void *)database[i].prefix,(void *)bufPrefix,sizeof(bufPrefix));
 		database[i].station_id = i+1;
 		database[i].actuator_status = 'c';
 		database[i].feedback_status = 'c';
 		database[i].sensor_status = 'c';
 		database[i].station_status = 'd';
-		memcpy((void *)database[i].reserved,(void *)buf2,sizeof(buf2));
+		memcpy((void *)database[i].reserved,(void *)bufReserved,sizeof(bufReserved));
+		database[i].checksumValue = 0;
 	}
 }
+
+uint32_t checksum(char* buffer, uint32_t size)
+{
+	uint32_t checksumValue = 0;
+	for(int i = 0; i < size; i++)
+		{
+			checksumValue += buffer[i];
+		}
+	return checksumValue;
+}
+
 
 //FONCTIONS POUR L'UART
 

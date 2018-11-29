@@ -43,7 +43,7 @@ SUBDIRS :=  \
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
 ../../../../phy/atmegarfr2/src/phy.c \
-../../template.c
+../template.c
 
 
 PREPROCESSING_SRCS += 
@@ -94,7 +94,7 @@ stack/phy/atmegarfr2/src/%.o: ../../../../phy/atmegarfr2/src/%.c
 	@echo Finished building: $<
 	
 
-./%.o: ../../%.c
+./%.o: .././%.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 4.8.1
 	$(QUOTE)C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1061\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DPHY_ATMEGARFR2 -DHAL_ATMEGA256RFR2 -DPLATFORM_XPLAINED_PRO_ATMEGA256RFR2 -DF_CPU=8000000  -I"../../../../hal/atmega256rfr2/inc" -I"../../../../phy/atmegarfr2/inc" -I"../../../../nwk/inc" -I"../../../../sys/inc" -I"../.."  -Os -fdata-sections -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g3 -Wall -mmcu=atmega256rfr2 -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
