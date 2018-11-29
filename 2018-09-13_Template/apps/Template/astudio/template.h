@@ -64,6 +64,7 @@ void request_station_status(void);
 int confirm_station_status(void);
 void pack();
 void unpack();
+void command_station(void);
 uint32_t checksum(char* buffer, uint32_t size);
 
 #endif /* template_H_ */

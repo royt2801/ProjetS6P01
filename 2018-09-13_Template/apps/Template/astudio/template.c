@@ -15,7 +15,7 @@ static void APP_TaskHandler(void)
 
 	
 	
-	read_station_status();
+	
 	receivedUart = Lis_UART();  
 	if(receivedUart)		//est-ce qu'un caractere a été recu par l'UART?
 	 {
@@ -31,8 +31,7 @@ static void APP_TaskHandler(void)
 			uint8_t demonstration_string[128] = "0000000000"; //data packet bidon
 			Ecris_Wireless(demonstration_string, 10); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer*/
 	}
-	receivedWireless = 0; 
-  
+	read_station_status();
 }
 
 uint32_t a = 0;
@@ -121,8 +120,7 @@ void read_station_status(void)
 			{
 				unpack();
 			}
-			
-
+		
 		if(station_id < NB_STATIONS)
 			station_id ++;
 		else
@@ -142,30 +140,38 @@ void request_station_status(void)
 
 int confirm_station_status(void)
 {
-	if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless? 
 	{
-		Ecris_UART_string( "\n\rnew trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
-		Ecris_UART_string( "contenu: %s\n\r", ind.data );
-	
-		char bufPrefix[PREFIX_LEN] = "S6GEP1";
-		if(memcmp(bufPrefix,ind.data,PREFIX_LEN) == 0)
+		if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless?
 		{
+			Ecris_UART_string( "new trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
+			Ecris_UART_string( "contenu: %s\n\r", ind.data );
+			
+			char bufPrefix[PREFIX_LEN] = "S6GEP1";
+			if(memcmp(bufPrefix,ind.data,PREFIX_LEN) == 0)
+			{
 				Ecris_UART_string("Prefixe reconnu!\n\r");
 				if(ind.data[6] == station_id + '0')
 				{
 					Ecris_UART_string("Station %c est connectee!\n\r",ind.data[6]);
+					receivedWireless = 0;
 					return 1;
-				}		
+				}
+				else 
+				{
+					Ecris_UART_string("Mauvaise station connectee!\n\r",ind.data[6]);
+					receivedWireless = 0;
+					return 0;
+				}
+			}
+			else
+			{
+				Ecris_UART_string("Prefixe non reconnu!\n\r");
+				receivedWireless = 0;
+				return 0;
+			}
 		}
-		else
-		{
-			Ecris_UART_string("Prefixe non reconnu!\n\r");
-			return 0;
-		}
-	
 	}
 }
-
 void pack()
 {
 	memcpy(transmit_buff,database[station_id-1].prefix,sizeof(database[station_id-1].prefix)); //Prefix de 6 char
@@ -186,13 +192,18 @@ void pack()
 
 void unpack()
 {
-	/*database[station_id-1].prefix = receive_buff[0]; 
-	database[station_id-1].station_id = receive_buff[6];
 	database[station_id-1].actuator_status = receive_buff[7];
 	database[station_id-1].feedback_status = receive_buff[8];
 	database[station_id-1].sensor_status = receive_buff[9];
-	database[station_id-1].station_status = receive_buff[10];
-	database[station_id-1].reserved = receive_buff[11];*/
+	database[station_id-1].station_status = 'u';
+}
+
+void command_station(void)
+{
+	if(database[station_id].feedback_status == 'c' && database[station_id].sensor_status == 'c')
+		database[station_id].actuator_status = 'o';
+	if(database[station_id].feedback_status == 'o' && database[station_id].sensor_status == 'o')
+		database[station_id].actuator_status = 'c';
 }
 
 void init_data(void)
