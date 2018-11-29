@@ -1,80 +1,15 @@
-/**
- * \file template.c
- *
- * \brief Empty application template
- *
- * Copyright (C) 2012-2014, Atmel Corporation. All rights reserved.
- *
- * \asf_license_start
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * 3. The name of Atmel may not be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * 4. This software may only be redistributed and used in connection with an
- *    Atmel microcontroller product.
- *
- * THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT ARE
- * EXPRESSLY AND SPECIFICALLY DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- * \asf_license_stop
- *
- * Modification and other use of this code is subject to Atmel's Limited
- * License Agreement (license.txt).
- *
- * $Id: template.c 9267 2014-03-18 21:46:19Z ataradov $
- *
- */
-
 /*- Includes ---------------------------------------------------------------*/
 #include "sys.h"
 #include "phy.h"
 #include <stdio.h>
 #include <stdarg.h>
+#include "template.h"
 
 /*- Definitions ------------------------------------------------------------*/
 // Put your preprocessor definitions here
 
 /*- Types ------------------------------------------------------------------*/
 // Put your type definitions here
-
-/*- Prototypes -------------------------------------------------------------*/
-// Put your function prototypes here
-char Lis_UART(void);
-void Ecris_UART(char data);
-void Ecris_UART_string(char const * data, ...);
-void init_UART(void);
-void SYS_Init(void);
-void init_timer1(void);
-
-/*- Variables --------------------------------------------------------------*/
-// Put your variables here
-uint8_t receivedWireless;	//cette variable deviendra 1 lorsqu'un nouveau paquet aura été recu via wireless (et copié dans "PHY_DataInd_t ind"
-							//il faut la mettre a 0 apres avoir géré le paquet; tout message recu via wireless pendant que cette variable est a 1 sera jeté
-
-// global variable to count the number of overflows
-volatile uint8_t tot_overflow;
-
-PHY_DataInd_t ind; //cet objet contiendra les informations concernant le dernier paquet qui vient de rentrer
-
 
 /*- Implementations --------------------------------------------------------*/
 
@@ -87,7 +22,7 @@ static void APP_TaskHandler(void)
   char receivedUart = 0;
 
   receivedUart = Lis_UART();  
-  if(receivedUart)		//est-ce qu'un caractere a été recu par l'UART?
+  /*if(receivedUart)		//est-ce qu'un caractere a été recu par l'UART?
   {
 	  Ecris_UART(receivedUart);	//envoie l'echo du caractere recu par l'UART
 
@@ -115,14 +50,18 @@ static void APP_TaskHandler(void)
 		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
 	}
 		
-  }
+  }*/
   
   if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless? 
   {
-	char buf[196];
-
 	Ecris_UART_string( "\n\rnew trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
-	Ecris_UART_string( "contenu: %s", ind.data );	
+	Ecris_UART_string( "\n\rcontenu: %s", ind.data );
+	
+	if(ind.data[6] == (1 + '0'))
+	{
+		Ecris_Wireless("S6GEP11cccu0000000000000",24);
+		Ecris_UART_string("S6GEP11cccu0000000000000\n\r");
+	}	
 	receivedWireless = 0; 
   }
 }
@@ -134,7 +73,6 @@ static void APP_TaskHandler(void)
 int main(void)
 {
   SYS_Init();
-  init_timer1();
   //ANT_DIV |= (1 << ANT_EXT_SW_EN);
   //ANT_DIV |= (1 << ANT_CTRL0);
   //ANT_DIV &= ~(1 << ANT_CTRL1);
