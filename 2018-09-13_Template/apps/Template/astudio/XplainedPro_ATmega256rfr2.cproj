@@ -206,6 +206,12 @@
     <Compile Include="template.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="uart.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="uart.h">
+      <SubType>compile</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="stack\" />

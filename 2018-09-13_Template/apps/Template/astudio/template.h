@@ -21,6 +21,7 @@
 /*- Variables --------------------------------------------------------------*/
 volatile uint8_t tot_overflow;       // global variable to count the number of overflows
 volatile uint8_t tot_overflow_flag;
+volatile uint8_t timeout_flag;
 
 uint8_t station_id;
 char transmit_buff[TRANSMIT_BUF_LEN];
@@ -52,10 +53,6 @@ data database[NB_STATIONS];
 
 /*- Prototypes -------------------------------------------------------------*/
 void SYS_Init(void);
-void init_UART(void);
-char Lis_UART(void);
-void Ecris_UART(char data);
-void Ecris_UART_string(char const * data, ...);
 void init_timer1(void);
 
 void init_data(void);
