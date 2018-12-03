@@ -5,64 +5,26 @@
 #include <stdarg.h>
 #include "template.h"
 
-/*- Definitions ------------------------------------------------------------*/
-// Put your preprocessor definitions here
 
-/*- Types ------------------------------------------------------------------*/
-// Put your type definitions here
-
-/*- Implementations --------------------------------------------------------*/
-
-// Put your function implementations here
-
-/*************************************************************************//**
-*****************************************************************************/
 static void APP_TaskHandler(void)
 {
   char receivedUart = 0;
-
-  receivedUart = Lis_UART();  
-  /*if(receivedUart)		//est-ce qu'un caractere a été recu par l'UART?
-  {
-	  Ecris_UART(receivedUart);	//envoie l'echo du caractere recu par l'UART
-
-	  if(receivedUart == '1')	//est-ce que le caractere recu est 'a'? 
-		{
-		uint8_t demonstration_string[128] = "1"; //data packet bidon
-		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
-		}
-		
-	if(receivedUart == '2')	//est-ce que le caractere recu est 'a'?
-	{
-		uint8_t demonstration_string[128] = "2"; //data packet bidon
-		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
-	}
-	
-	if(receivedUart == '3')	//est-ce que le caractere recu est 'a'?
-	{
-		uint8_t demonstration_string[128] = "3"; //data packet bidon
-		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
-	}
-	
-	if(receivedUart == '4')	//est-ce que le caractere recu est 'a'?
-	{
-		uint8_t demonstration_string[128] = "4"; //data packet bidon
-		Ecris_Wireless(demonstration_string, 1); //envoie le data packet; nombre d'éléments utiles du paquet à envoyer
-	}
-		
-  }*/
   
-  if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless? 
+  if(confirm_station_status() == 1)
   {
-	Ecris_UART_string( "\n\rnew trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
-	Ecris_UART_string( "\n\rcontenu: %s", ind.data );
-	
-	if(ind.data[6] == (1 + '0'))
-	{
-		Ecris_Wireless("S6GEP11cccu0000000000000",24);
-		Ecris_UART_string("S6GEP11cccu0000000000000\n\r");
-	}	
-	receivedWireless = 0; 
+	    database[station_id-1].actuator_status = ind.data[7];
+		unpack();
+		read_input();
+		pack();
+		send_station_status();
+		if(database[0].actuator_status == 'c')
+		{
+			PORTD &= ~(1 << PORTD4);
+		}
+		else
+		{	
+			PORTD |= (1 << PORTD4);
+		}
   }
 }
 
@@ -72,29 +34,135 @@ static void APP_TaskHandler(void)
 *****************************************************************************/
 int main(void)
 {
-  SYS_Init();
-  //ANT_DIV |= (1 << ANT_EXT_SW_EN);
-  //ANT_DIV |= (1 << ANT_CTRL0);
-  //ANT_DIV &= ~(1 << ANT_CTRL1);
-  
-  DDRD |= 1 << DDRD4;
-  
-   
-  while (1)
-  {
-    PHY_TaskHandler(); //stack wireless: va vérifier s'il y a un paquet recu
-    APP_TaskHandler(); //l'application principale roule ici
-	//Ecris_UART_string( "Count : %d\n\r", tot_overflow);
-	//Ecris_UART_string( "Count : %u\n\r", TCNT1);
+	station_id = STATION_ID;
+	SYS_Init();
+	GPIO_init();
+	init_data();
 	
-  }
+	while (1)
+	{
+		PHY_TaskHandler(); //stack wireless: va vérifier s'il y a un paquet recu
+		APP_TaskHandler(); //l'application principale roule ici	
+	}
 }
 
 
+void init_data(void)
+{
+	char bufPrefix[PREFIX_LEN] = "P1S6GE";
+	char bufReserved[RESERVED_LEN] = "000000000";
+	
+	for(int i = 0; i < NB_STATIONS; i++)
+	{
+		memcpy((void *)database[i].prefix,(void *)bufPrefix,sizeof(bufPrefix));
+		database[i].station_id = i+1;
+		database[i].actuator_status = 'c';
+		database[i].feedback_status = 'c';
+		database[i].sensor_status = 'c';
+		database[i].station_status = 'u';
+		memcpy((void *)database[i].reserved,(void *)bufReserved,sizeof(bufReserved));
+		database[i].checksumValue = 0;
+	}
+}
 
+void read_input(void)
+{
+	if (((PIND & (1 << PIND0)) >> PIND0) == 1) //feedback
+	{
+		database[0].feedback_status = 'o';
+	}
+	else
+	{
+		database[0].feedback_status = 'c';
+	}
+		
+	if (((PIND & (1 << PIND6)) >> PIND6) == 1) //Sensor
+	{
+		database[0].sensor_status = 'o';
+	}
+	else
+	{
+		database[0].sensor_status = 'c';
+	}
+		
+}
 
+int confirm_station_status(void)
+{
+	{
+		if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless?
+		{
+			Ecris_UART_string( "new trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
+			Ecris_UART_string( "contenu: %s\n\r", ind.data );
+			
+			char bufPrefix[PREFIX_LEN] = "P1S6GE";
+			if(memcmp(bufPrefix,ind.data,PREFIX_LEN) == 0)
+			{
+				Ecris_UART_string("Requete reconnue!\n\r");
+				if(ind.data[6] == STATION_ID +'0')
+				{
+					Ecris_UART_string("Station principale %c est connectee!\n\r",ind.data[6]);
+					
+					receivedWireless = 0;
+					return 1;
+				}
+				else
+				{
+					Ecris_UART_string("Mauvaise station connectee!\n\r",ind.data[6]);
+					receivedWireless = 0;
+					return 0;
+				}
+			}
+			else
+			{
+				Ecris_UART_string("Prefixe non reconnu!\n\r");
+				receivedWireless = 0;
+				return 0;
+			}
+		}
+	}
+	return 0;
+}		
+		
+void pack()
+{
+	memcpy(transmit_buff,database[station_id-1].prefix,sizeof(database[station_id-1].prefix)); //Prefix de 6 char
+	transmit_buff[6] = database[station_id-1].station_id + '0';
+	transmit_buff[7] = database[station_id-1].actuator_status;
+	transmit_buff[8] = database[station_id-1].feedback_status;
+	transmit_buff[9] = database[station_id-1].sensor_status;
+	transmit_buff[10] = database[station_id-1].station_status;
+	memcpy(transmit_buff+11,database[station_id-1].reserved,sizeof(database[station_id-1].reserved)); //Reserved 9 char
+	database[station_id-1].checksumValue = checksum(transmit_buff,20);
+	
+	transmit_buff[20] = (database[station_id-1].checksumValue >> 24) & 0xFF;
+	transmit_buff[21] = (database[station_id-1].checksumValue >> 16) & 0xFF;
+	transmit_buff[22] = (database[station_id-1].checksumValue >> 8) & 0xFF;
+	transmit_buff[23] = database[station_id-1].checksumValue & 0xFF;
+	
+}
 
+void unpack()
+{
+	//database[station_id-1].actuator_status = ind.data[7];
+}
 
+void send_station_status(void)
+{
+	Ecris_Wireless(transmit_buff, sizeof(transmit_buff));
+	Ecris_UART_string("Transmit : %s\n\r",transmit_buff);
+	Ecris_UART_string("\n\r");
+}
+
+uint32_t checksum(char* buffer, uint32_t size)
+{
+	uint32_t checksumValue = 0;
+	for(int i = 0; i < size; i++)
+	{
+		checksumValue += buffer[i];
+	}
+	return checksumValue;
+}
 
 //FONCTION D'INITIALISATION
 /*************************************************************************//**
@@ -106,6 +174,13 @@ wdt_disable();
 init_UART();
 PHY_Init(); //initialise le wireless
 PHY_SetRxState(1); //TRX_CMD_RX_ON
+}
+
+void GPIO_init(void)
+{
+	//PORTD |= (1<<PORTD0) | (1<<PORTD6);
+	DDRD |= (1 << DDRD4); //GPIO bitches
+	DDRD &= ~((1 << DDRD0) | (1 << DDRD6)); //GPIO bitches
 }
 
 
@@ -159,5 +234,4 @@ void init_UART(void)
 	UCSR1B = 0x18; //receiver, transmitter enable, no parity
 	UCSR1C = 0x06; //8-bits per character, 1 stop bit
 }
-
 
