@@ -40,6 +40,7 @@ void read_station_status(void)
 {
 	if(tot_overflow_flag == 1)
 	{
+		station_id = 1;
 		timeout_flag = 0;
 		pack(station_id);
 		Ecris_UART_string("Read station %u status...\n\r",station_id);
@@ -224,7 +225,7 @@ ISR(TIMER1_OVF_vect)
 
 // keep a track of number of overflows
 tot_overflow++;
-if(tot_overflow >= NB_STATIONS)
+if(tot_overflow >= 5)
 {
 tot_overflow = 0;
 tot_overflow_flag = 1;

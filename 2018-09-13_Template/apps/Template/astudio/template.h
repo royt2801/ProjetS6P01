@@ -14,7 +14,7 @@
 #define TEMPLATE_H_
 
 /*- Defines ---------------------------------------------------------------*/
-#define NB_STATIONS 8
+#define NB_STATIONS 2
 #define TRANSMIT_BUF_LEN 24
 #define PREFIX_LEN 6
 #define RESERVED_LEN 9
