@@ -93,6 +93,7 @@ int confirm_station_status(void)
 				if(ind.data[6] == station_id + '0')
 				{
 					Ecris_UART_string("Station %c est connectee!\n\r",ind.data[6]);
+					
 					receivedWireless = 0;
 					return 1;
 				}
@@ -133,18 +134,23 @@ void pack()
 
 void unpack()
 {
-	database[station_id-1].actuator_status = receive_buff[7];
-	database[station_id-1].feedback_status = receive_buff[8];
-	database[station_id-1].sensor_status = receive_buff[9];
+	database[station_id-1].actuator_status = ind.data[7];
+	database[station_id-1].feedback_status = ind.data[8];
+	database[station_id-1].sensor_status = ind.data[9];
 	database[station_id-1].station_status = 'u';
 }
 
+
 void command_station(void)
 {
-	if(database[station_id].feedback_status == 'c' && database[station_id].sensor_status == 'c')
-		database[station_id].actuator_status = 'o';
-	if(database[station_id].feedback_status == 'o' && database[station_id].sensor_status == 'o')
-		database[station_id].actuator_status = 'c';
+	if(database[station_id-1].feedback_status == 'c' && database[station_id-1].sensor_status == 'c')
+		database[station_id-1].actuator_status = 'o';
+	if(database[station_id-1].feedback_status == 'o' && database[station_id-1].sensor_status == 'o')
+		database[station_id-1].actuator_status = 'c';
+	
+	pack();
+	request_station_status();
+		
 }
 
 void init_data(void)
