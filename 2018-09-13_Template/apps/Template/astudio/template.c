@@ -40,13 +40,23 @@ void read_station_status(void)
 {
 	if(tot_overflow_flag == 1)
 	{
-		station_id = 1;
-		timeout_flag = 0;
+		Ecris_UART_string("Impossible de se connecter a la station %u\n\r\n\r",station_id);
+		database[station_id-1].station_status = 'd';
+		
+		if (timeout_flag == 1)
+		{
+			if(station_id < NB_STATIONS)
+			station_id ++;
+			else
+			station_id = 1;
+		}
+		
+		timeout_flag = 1;
+				
 		pack(station_id);
 		Ecris_UART_string("Read station %u status...\n\r",station_id);
 		request_station_status();
-		
-		
+				
 		tot_overflow_flag = 0;
 		
 		Ecris_UART_string("\n\r");
@@ -63,14 +73,6 @@ void read_station_status(void)
 		else
 			station_id = 1;
 	}
-	
-	if (timeout_flag == 1)
-	{
-		if(station_id < NB_STATIONS)
-			station_id ++;
-		else
-			station_id = 1;
-	}
 }
 
 void request_station_status(void)
@@ -81,29 +83,28 @@ void request_station_status(void)
 
 int confirm_station_status(void)
 {
-	{
+	
 		if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless?
 		{
 			Ecris_UART_string( "new trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
 			Ecris_UART_string( "contenu: %s\n\r", ind.data );
 			
+			uint32_t checksum_32bits = (ind.data[20] << 24) + (ind.data[21] << 16) + (ind.data[22] << 8) + ind.data[23];
+			if (checksum(ind.data, 20) == checksum_32bits)
+			{
+				Ecris_UART_string("Signal sans erreur!\n\r");
+			}
+			else
+			{
+				Ecris_UART_string("Erreur dans la trame detectee!\n\r");
+				receivedWireless = 0;
+				return 0;
+			}
+			
 			char bufPrefix[PREFIX_LEN] = "P1S6GE";
 			if(memcmp(bufPrefix,ind.data,PREFIX_LEN) == 0)
 			{
 				Ecris_UART_string("Prefixe reconnu!\n\r");
-				if(ind.data[6] == station_id + '0')
-				{
-					Ecris_UART_string("Station %c est connectee!\n\r",ind.data[6]);
-					
-					receivedWireless = 0;
-					return 1;
-				}
-				else 
-				{
-					Ecris_UART_string("Mauvaise station connectee!\n\r",ind.data[6]);
-					receivedWireless = 0;
-					return 0;
-				}
 			}
 			else
 			{
@@ -111,8 +112,21 @@ int confirm_station_status(void)
 				receivedWireless = 0;
 				return 0;
 			}
+			
+			if(ind.data[6] == station_id + '0')
+			{
+				Ecris_UART_string("Station %c est connectee!\n\r",ind.data[6]);
+				receivedWireless = 0;
+				return 1;
+			}
+			else 
+			{
+				Ecris_UART_string("Mauvaise station connectee!\n\r",ind.data[6]);
+				receivedWireless = 0;
+				return 0;
+			}
 		}
-	}
+	
 	return 0;
 }
 void pack()
@@ -225,11 +239,10 @@ ISR(TIMER1_OVF_vect)
 
 // keep a track of number of overflows
 tot_overflow++;
-if(tot_overflow >= 5)
+if(tot_overflow >= 2)
 {
-tot_overflow = 0;
-tot_overflow_flag = 1;
-timeout_flag = 0;
+	tot_overflow = 0;
+	tot_overflow_flag = 1;
 }
 
 }
