@@ -12,7 +12,7 @@ static void APP_TaskHandler(void)
   
   if(confirm_station_status() == 1)
   {
-	    database[station_id-1].actuator_status = ind.data[7];
+	    //database[station_id-1].actuator_status = ind.data[7];
 		unpack();
 		read_input();
 		pack();
@@ -89,38 +89,48 @@ void read_input(void)
 
 int confirm_station_status(void)
 {
+	if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless?
 	{
-		if(receivedWireless == 1) //est-ce qu'un paquet a été recu sur le wireless?
+		Ecris_UART_string( "new trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
+		Ecris_UART_string( "contenu: %s\n\r", ind.data );
+		uint32_t checksum_32bits = (ind.data[20] << 24) + (ind.data[21] << 16) + (ind.data[22] << 8) + ind.data[23];
+		if (checksum(ind.data, 20) == checksum_32bits)
 		{
-			Ecris_UART_string( "new trame! size: %d, RSSI: %ddBm\n\r", ind.size, ind.rssi );
-			Ecris_UART_string( "contenu: %s\n\r", ind.data );
-			
-			char bufPrefix[PREFIX_LEN] = "P1S6GE";
-			if(memcmp(bufPrefix,ind.data,PREFIX_LEN) == 0)
-			{
-				Ecris_UART_string("Requete reconnue!\n\r");
-				if(ind.data[6] == STATION_ID +'0')
-				{
-					Ecris_UART_string("Station principale %c est connectee!\n\r",ind.data[6]);
-					
-					receivedWireless = 0;
-					return 1;
-				}
-				else
-				{
-					Ecris_UART_string("Mauvaise station connectee!\n\r",ind.data[6]);
-					receivedWireless = 0;
-					return 0;
-				}
-			}
-			else
-			{
-				Ecris_UART_string("Prefixe non reconnu!\n\r");
-				receivedWireless = 0;
-				return 0;
-			}
+			Ecris_UART_string("Signal sans erreur!\n\r");
+		}
+		else
+		{
+			Ecris_UART_string("Erreur dans la trame detectee!\n\r");
+			receivedWireless = 0;
+			return 0;
+		}
+		
+		char bufPrefix[PREFIX_LEN] = "P1S6GE";
+		if(memcmp(bufPrefix,ind.data,PREFIX_LEN) == 0)
+		{
+			Ecris_UART_string("Prefixe reconnu!\n\r");
+		}
+		else
+		{
+			Ecris_UART_string("Prefixe non reconnu!\n\r");
+			receivedWireless = 0;
+			return 0;
+		}
+		
+		if(ind.data[6] == station_id + '0')
+		{
+			Ecris_UART_string("Station %c est connectee!\n\r",ind.data[6]);
+			receivedWireless = 0;
+			return 1;
+		}
+		else
+		{
+			Ecris_UART_string("Mauvaise station connectee!\n\r",ind.data[6]);
+			receivedWireless = 0;
+			return 0;
 		}
 	}
+	
 	return 0;
 }		
 		
@@ -144,7 +154,8 @@ void pack()
 
 void unpack()
 {
-	//database[station_id-1].actuator_status = ind.data[7];
+	
+	database[station_id-1].actuator_status = ind.data[7];
 }
 
 void send_station_status(void)
